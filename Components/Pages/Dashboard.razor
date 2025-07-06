@@ -1,0 +1,141 @@
+﻿@page "/"
+@using CriptoDashTemplate.Models
+@using CriptoDashTemplate.Services
+@using System.Globalization
+@inject CurrencyStateService CurrencyState
+@inject MarketService MarketService
+@inject ClientStorage ClientStorage
+
+
+<PageTitle>Dashboard - CriptoDash</PageTitle>
+
+@* <MudText Typo="Typo.h3" GutterBottom="true">CriptoDash</MudText> *@
+
+<MudTable @ref="criptoTable" Items="criptoData?.Criptos" Hover="true" SortLabel="Sort By" Elevation="0" Class="mt-10"
+          AllowUnsorted="false"
+          ServerData="LoadData"
+          RowsPerPage="50">
+    <HeaderContent>
+        <MudTh>Criptomoeda</MudTh>
+        <MudTh>Change (24h)</MudTh>
+        <MudTh>Price</MudTh>
+        <MudTh>Favorite</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Criptomoeda">
+            <div class="d-flex align-items-center">
+                <MudAvatar Size="Size.Medium" Class="me-2">
+                    <MudImage Src="@context.image" Alt="@context.name" Class="rounded-circle" />
+                </MudAvatar>
+                <div>
+                    <div>@context.name</div>
+                    @*      <small class="text-secondary text-uppercase">@context.symbol</small> *@
+                </div>
+            </div>
+        </MudTd>
+        <MudTd DataLabel="Change (24h)">
+            @{
+                var variation = context.price_change_percentage_24h ?? 0;
+                var cor = variation >= 0 ? Color.Success : Color.Error;
+                var sinal = variation >= 0 ? "+" : "";
+            }
+            <MudText Color="@cor">@($"{sinal}{variation:N2}%")</MudText>
+        </MudTd>
+        <MudTd DataLabel="Price">
+            @{
+                decimal currentPrice = context.current_price.Value;
+                int qntdadeCasas = 2;
+                if (currentPrice < 1)
+                    qntdadeCasas = 6; // Ajusta a quantidade de casas decimais para valores abaixo de 1
+
+            }
+            @context.current_price?.ToString($"C{qntdadeCasas}", CurrencyState.CurrentCulture)
+        </MudTd>
+        <MudTd>
+            @if (!context.UserFavorite.Value)
+            {
+                <MudIconButton Icon="@Icons.Material.Outlined.Favorite"
+                               Color="Color.Dark"
+                               Size="Size.Medium"
+                               OnClick="@(() => Favorite(context.id, true))" />
+            }
+            else
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Favorite"
+                               Color="Color.Primary"
+                               Size="Size.Medium"
+                               OnClick="@(() => Favorite(context.id, false))" />
+            }
+
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 50, 100 }" />
+    </PagerContent>
+</MudTable>
+
+
+
+@code {
+
+    private CriptoData? criptoData;
+
+    private MudTable<CriptoMoeda>? criptoTable;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrencyState.OnCurrencyStateChanged += async (currency) =>
+        {
+            if (criptoTable is not null)
+            {
+                try
+                {
+                    await criptoTable.ReloadServerData();
+                    StateHasChanged();
+
+                }
+                catch (Exception ex) { }
+
+            }
+          
+        };
+
+    }
+
+    public void Favorite(string idCripto, bool favorite)
+    {
+        if (favorite)
+        {
+            ClientStorage.AddFavoriteCurrency(idCripto);
+            CriptoMoeda? cripto = criptoData.Criptos.FirstOrDefault(c => c.id == idCripto);
+            if (cripto != null)
+                cripto.UserFavorite = true;
+        }
+        else
+        {
+            ClientStorage.RemoveFavoriteCurrency(idCripto);
+            CriptoMoeda? cripto = criptoData.Criptos.FirstOrDefault(c => c.id == idCripto);
+            if (cripto != null)
+                cripto.UserFavorite = false;
+        }
+
+
+    }
+
+    private async Task<TableData<CriptoMoeda>> LoadData(TableState state, CancellationToken token)
+    {
+        criptoData = await MarketService.GetMostValuatesCripto(CurrencyState.SelectedCurrency, state.PageSize, state.Page + 1);
+
+        foreach (var cripto in criptoData.Criptos)
+        {
+            if (ClientStorage.GetFavoriteCurrencies().Contains(cripto.id))
+            {
+                cripto.UserFavorite = true;
+            }
+        }
+
+        return new TableData<CriptoMoeda> { Items = criptoData.Criptos, TotalItems = criptoData.Quantidade };
+    }
+}

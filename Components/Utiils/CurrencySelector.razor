@@ -1,0 +1,35 @@
+﻿@using CriptoDashTemplate.Models
+@using CriptoDashTemplate.Services
+@inject CurrencyStateService CurrencyState
+@rendermode InteractiveServer
+
+<MudSelect T="string" Value="@selectedCurrency" Label="Currency" ValueChanged="OnSelectedCurrencyChanged" Variant="Variant.Filled" Class="w-25">
+    @foreach (var currency in AvaibleCurrencies)
+    {
+        <MudSelectItem Value="@currency.Code">
+            <span class="@($"fi {currency.CssFlagClass}")" style="margin-right:8px;"></span>
+            @($"{currency.DisplayCode}")
+        </MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    public string selectedCurrency { get; set; } = "usd";
+
+    public IEnumerable<CurrencyOption> AvaibleCurrencies { get; set; }
+
+    protected override Task OnInitializedAsync()
+    {
+        AvaibleCurrencies = CurrencyService.GetAvaibleCurrencies();
+        selectedCurrency = CurrencyState.SelectedCurrency;
+        return Task.CompletedTask;
+    }
+
+    private Task OnSelectedCurrencyChanged(string newValue)
+    {
+        CurrencyState.SetCurrency(newValue);
+        selectedCurrency = newValue;
+        return Task.CompletedTask;
+    }
+}
+

@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36203.30 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CriptoDashTemplate", "CriptoDashTemplate.csproj", "{FFBACBCC-3B55-B661-BA0E-7B4B085435A6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FFBACBCC-3B55-B661-BA0E-7B4B085435A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FFBACBCC-3B55-B661-BA0E-7B4B085435A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FFBACBCC-3B55-B661-BA0E-7B4B085435A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FFBACBCC-3B55-B661-BA0E-7B4B085435A6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {32F2E317-9EB0-496A-894A-3F1870E18021}
+	EndGlobalSection
+EndGlobal

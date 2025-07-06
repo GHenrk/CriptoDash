@@ -1,0 +1,128 @@
+﻿@page "/favorites"
+@using CriptoDashTemplate.Models
+@using CriptoDashTemplate.Services
+
+
+@inject CurrencyStateService CurrencyState
+@inject MarketService MarketService
+@inject ClientStorage ClientStorage
+
+<PageTitle>Favorites - CriptoDash</PageTitle>
+
+
+<MudContainer Class="mt-12 px-4" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @foreach (var cripto in _criptoData?.Criptos ?? new List<CriptoMoeda>())
+        {
+            string urlCripto = $"/criptoInfo/{cripto.id}";
+
+            <MudItem xs="12" sm="3" md="3" >
+                <MudPaper Elevation="6" Class="pa-6 d-flex flex-column justify-space-between h-full">
+                    <!-- Cabeçalho com avatar -->
+                    <MudNavLink class="d-flex align-items-center mb-3" Href="@urlCripto">
+                        <MudAvatar  Class="mr-3">
+                            <MudImage Src="@cripto.image" Alt="@cripto.symbol" Class="rounded-circle" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="mb-0">@cripto.name</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@cripto.symbol.ToUpper()</MudText>
+                        </div>
+                    </MudNavLink>
+
+                    <!-- Preço e variação -->
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.subtitle2">@cripto.current_price.Value.ToString("C4", CurrencyState.CurrentCulture)</MudText>
+                        <MudText Color="@((cripto.price_change_percentage_24h >= 0) ? Color.Success : Color.Error)" Typo="Typo.subtitle2">
+                            @($"{(cripto.price_change_percentage_24h >= 0 ? "+" : "")}{cripto.price_change_percentage_24h:N2}%")
+                        </MudText>
+
+                    </div>
+                    <div class="h-full">
+
+                        <!-- Mini Gráfico -->
+                        <MudChart ChartType="ChartType.Line"
+                                  Class="mb-2"
+                                  Width="100%"
+                                  ChartOptions="@ChartsService.CriaCharsetOptions()"
+                                  ChartSeries="@ChartsService.CriaChartSeries(cripto, cripto.SparkLinePrices)" />
+
+                        @*          <!-- Botão Favorito -->
+                    <MudIconButton Icon="@Icons.Material.Filled.Favorite"
+                                   Color="Color.Primary"
+                                   Size="Size.Medium"
+                                   OnClick="@(() => ToggleFavorite(cripto.id))" /> *@
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+
+
+@code {
+    protected CriptoData _criptoData;
+
+    
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCards();
+
+        CurrencyState.OnCurrencyStateChanged += async (currency) =>
+        {
+            await LoadCards();
+            try
+            {
+                StateHasChanged();
+
+            }
+            catch
+            {
+
+            }
+        };
+
+        return;
+    }
+
+    public async Task LoadCards()
+    {
+        var currencies = ClientStorage.GetFavoriteCurrencies();
+        if (currencies == null || !currencies.Any())
+        {
+            _criptoData = new CriptoData
+            {
+                Criptos = new List<CriptoMoeda>
+    ()
+            };
+            return;
+        }
+        var data = await MarketService.GetEspecificCriptos(currencies, CurrencyState.SelectedCurrency);
+        if (data != null && data.Criptos != null)
+        {
+            _criptoData = data;
+            foreach (var cripto in _criptoData.Criptos)
+            {
+                cripto.UserFavorite = true; // Mark as favorite
+                await MarketService.LoadChartDataAsync(cripto, CurrencyState.SelectedCurrency, 1);
+            }
+        }
+        else
+        {
+            _criptoData = new CriptoData
+            {
+                Criptos = new List<CriptoMoeda>
+                ()
+            };
+        }
+    }
+}
+
+
+
+
+
+

@@ -1,0 +1,175 @@
+﻿@page "/criptoInfo/{criptoId}"
+@using CriptoDashTemplate.Models
+@using CriptoDashTemplate.Services
+@inject CurrencyStateService CurrencyState
+@inject MarketService MarketService
+@inject ClientStorage ClientStorage
+@rendermode InteractiveServer
+
+@if (CriptoMoeda == null)
+{
+    <div class="text-center">
+        <h2>Loading...</h2>
+        <p>Please wait while we fetch the data.</p>
+    </div>
+}
+else
+{
+    <MudContainer Class="mt-12 px-4" MaxWidth="MaxWidth.False">
+        <MudPaper Elevation="6" Class="pa-4">
+
+            <div class="d-flex align-items-center mb-4">
+                <MudAvatar Size="Size.Large" Class="mr-3">
+                    <MudImage Src="@CriptoMoeda.image" Alt="@CriptoMoeda.symbol" Class="rounded-circle" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h4">@CriptoMoeda.name</MudText>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">@CriptoMoeda.symbol.ToUpper()</MudText>
+                </div>
+            </div>
+
+        
+            <MudTabs Outlined="true">
+                <MudTabPanel Text="Gráficos">
+                    <MudSelect T="int" Value="@_selectedPeriodo" Label="Período" Dense="true" ValueChanged="OnPeriodoChange" Class="mt-2">
+                        @foreach (var periodo in Periodos)
+                        {
+                            <MudSelectItem Value="@periodo">@($"{periodo} dia(s)")</MudSelectItem>
+                        }
+                    </MudSelect>
+                
+                    <MudTabs Class="mt-4">
+                        <MudTabPanel Text="Price">
+                            <MudChart ChartType="ChartType.Line"
+                                      ChartSeries="@ChartsService.CriaChartSeries(CriptoMoeda, CriptoMoeda.SparkLinePrices)"
+                                      XAxisLabels="@CriptoMoeda.SparkLinePriceLabels"
+                                      Width="100%" />
+                        </MudTabPanel>
+
+                        <MudTabPanel Text="Volume">
+                            <MudChart ChartType="ChartType.Bar"
+                                      ChartSeries="@ChartsService.CriaChartSeries(CriptoMoeda, CriptoMoeda.SparkLineVolume)"
+                                      Width="100%" />
+                        </MudTabPanel>
+
+                        <MudTabPanel Text="Market Cap">
+                            <MudChart ChartType="ChartType.Line"
+                                      ChartSeries="@ChartsService.CriaChartSeries(CriptoMoeda, CriptoMoeda.SparklineMarketCap)"
+                                      XAxisLabels="@CriptoMoeda.SparkLineMarketCapLabels"
+                                      Width="100%" />
+                        </MudTabPanel>
+                    </MudTabs>
+                </MudTabPanel>
+
+                <!-- Aba 2: Informações -->
+                <MudTabPanel Text="Informações">
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" sm="6">
+                            <MudText>Preço atual: <b>@CriptoMoeda.current_price?.ToString("C", CurrencyState.CurrentCulture)</b></MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText>
+                                Variação 24h:
+                                <MudText Color="@((CriptoMoeda.price_change_percentage_24h >= 0) ? Color.Success : Color.Error)" Inline="true">
+                                    @($"{CriptoMoeda.price_change_percentage_24h:N2}%")
+                                </MudText>
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText>Market Cap: @CriptoMoeda.market_cap?.ToString("C", CurrencyState.CurrentCulture)</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText>Volume 24h: @CriptoMoeda.total_volume?.ToString("C", CurrencyState.CurrentCulture)</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText>Oferta Circulante: @CriptoMoeda.circulating_supply?.ToString("N0")</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText>Oferta Máxima: @CriptoMoeda.max_supply?.ToString("N0")</MudText>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Última atualização: @CriptoMoeda.last_updated?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                            </MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        </MudPaper>
+    </MudContainer>
+
+}
+
+@code {
+
+    [Parameter]
+    public string criptoId { get; set; } = "bitcoin";
+
+    public CriptoMoeda CriptoMoeda { get; set; }
+
+    public CriptoData CriptoData { get; set; }
+
+    public List<int> Periodos { get; set; } = new List<int>() { 1, 7, 30, 60, 120, 360 };
+
+    public int _selectedPeriodo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _selectedPeriodo = Periodos[1];
+        var criptoData = await LoadCriptoDataAsync(criptoId, _selectedPeriodo);
+        if (criptoData != null && criptoData.Criptos.Any())
+        {
+            CriptoMoeda = criptoData.Criptos.FirstOrDefault();
+            CriptoData = criptoData;
+        }
+        else
+        {
+            throw new Exception("Cripto data not found or empty.");
+        }
+
+        CurrencyState.OnCurrencyStateChanged += async (currency) =>
+        {
+            CriptoData = await LoadCriptoDataAsync(criptoId, _selectedPeriodo);
+            if (CriptoData.Criptos.Any())
+            {
+                CriptoMoeda = CriptoData.Criptos.FirstOrDefault();
+                StateHasChanged();
+            }
+        };
+        return;
+
+    }
+
+    public async Task<CriptoData> LoadCriptoDataAsync(string criptoId, int periodo)
+    {
+        string[] idsBusca = criptoId.Split(",");
+        CriptoData criptoData = await MarketService.GetEspecificCriptos(idsBusca, CurrencyState.SelectedCurrency);
+        foreach (var cripto in criptoData.Criptos)
+        {
+            var qntdadePontos = _selectedPeriodo;
+            if (_selectedPeriodo == 1)
+                qntdadePontos = 24;
+            await MarketService.LoadChartDataAsync(cripto, CurrencyState.SelectedCurrency, _selectedPeriodo, qntdadePontos);
+        }
+        return criptoData;
+    }
+
+
+
+    public Task OnPeriodoChange(int value)
+    {
+        _selectedPeriodo = value;
+        Task.Run( async () =>
+        {
+            CriptoData = await LoadCriptoDataAsync(criptoId, _selectedPeriodo);
+            if (CriptoData.Criptos.Any())
+            {
+                CriptoMoeda = CriptoData.Criptos.FirstOrDefault();
+            }
+        }).Wait();
+
+        Task.Delay(100).Wait(); 
+
+        return Task.CompletedTask;
+    }
+}
